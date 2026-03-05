@@ -4,182 +4,110 @@
 |---|---|
 | **Time** | 3-5 hours |
 | **Difficulty** | Intermediate |
-| **Prerequisites** | Module 04 completed |
+| **Prerequisites** | Module 04 completed, Weaviate running |
 
 ---
 
 ## Learning Objectives
-
-By the end of this module, you will be able to:
-
-- Understand the core concepts of Weaviate Setup and Schema Design
-- Set up and configure the required tools and environments
-- Complete hands-on exercises that demonstrate practical skills
-- Apply these skills in real-world scenarios
-- Pass the module validation to prove your understanding
+- Set up Weaviate with Docker
+- Design schemas with properties and vectorizers
+- Perform CRUD operations and vector search
+- Use GraphQL and REST APIs
 
 ---
 
-## Concepts
+## 1. Weaviate Concepts
 
-### What is Weaviate Setup and Schema Design?
-
-Weaviate Setup and Schema Design is a fundamental component of Vector Database Comparison: Zero to Hero. In production environments, this skill is used daily by engineers to build, deploy, and maintain reliable systems.
-
-**Real-world analogy:** Think of Weaviate Setup and Schema Design like learning to read a map before navigating a city. Once you understand the fundamentals, you can find your way through any complex system.
-
-### Why Does This Matter?
-
-Companies like Google, Netflix, Amazon, and Meta rely on these practices to:
-- Deploy thousands of times per day
-- Maintain 99.99% uptime
-- Scale to millions of users
-- Recover from failures in minutes
-
-### Key Terminology
-
-| Term | Definition |
-|---|---|
-| **Core concept 1** | The foundational building block of this module |
-| **Core concept 2** | How components interact and communicate |
-| **Core concept 3** | The pattern used for reliability and scale |
-| **Best practice** | The industry-standard approach to implementation |
+- **Collections** (formerly Classes): Like database tables
+- **Objects**: Individual records with properties and vectors
+- **Vectorizers**: Built-in modules to auto-generate embeddings
+- **Modules**: Plugins for vectorization, ranking, etc.
 
 ---
 
-## Hands-On Lab
+## 2. Schema Design
 
-### Prerequisites Check
+```python
+import weaviate
+from weaviate.classes.config import Configure, Property, DataType
 
-Before starting, verify your environment:
+client = weaviate.connect_to_local()
 
-```bash
-# Check Docker is running
-docker --version
-docker compose version
-
-# Check you have the project cloned
-ls modules/05-weaviate-setup/
+client.collections.create(
+    name="Article",
+    vectorizer_config=Configure.Vectorizer.none(),  # We provide our own vectors
+    properties=[
+        Property(name="title", data_type=DataType.TEXT),
+        Property(name="content", data_type=DataType.TEXT),
+        Property(name="category", data_type=DataType.TEXT),
+        Property(name="published", data_type=DataType.DATE),
+    ],
+)
 ```
 
-### Exercise 1: Setup and Configuration
+---
 
-**Goal:** Get the foundation in place for this module.
+## 3. Insert and Query
 
-**Step 1:** Review the starter files
-```bash
-ls modules/05-weaviate-setup/lab/starter/
+```python
+from weaviate.classes.query import MetadataQuery, Filter
+
+articles = client.collections.get("Article")
+
+# Insert
+articles.data.insert(
+    properties={"title": "AI Basics", "content": "ML is...", "category": "tech"},
+    vector=[0.1, 0.2, ...],
+)
+
+# Vector search
+response = articles.query.near_vector(
+    near_vector=[0.1, 0.2, ...],
+    limit=10,
+    return_metadata=MetadataQuery(distance=True),
+)
+
+# Filtered search
+response = articles.query.near_vector(
+    near_vector=[0.1, 0.2, ...],
+    limit=10,
+    filters=Filter.by_property("category").equal("tech"),
+)
+
+for obj in response.objects:
+    print(f"{obj.properties['title']} (distance: {obj.metadata.distance:.4f})")
 ```
 
-**Step 2:** Set up the required environment
-```bash
-# Follow the specific setup for this module
-# Each command is explained below
-cd modules/05-weaviate-setup/lab/starter/
+---
+
+## 4. Using Our Wrapper
+
+```python
+from src.databases.weaviate_client import WeaviateClient
+
+db = WeaviateClient(host="localhost", port=8080)
+db.create_collection("TestDocs")
+db.insert("TestDocs", ids, embeddings, documents, metadatas)
+results = db.search("TestDocs", query_embedding, top_k=10)
+db.close()
 ```
 
-**Step 3:** Verify the setup
+---
+
+## 5. When to Use Weaviate
+
+| Strength | Weakness |
+|----------|----------|
+| Rich query language (GraphQL) | More complex setup |
+| Built-in vectorizers | Heavier resource usage |
+| Multi-tenancy support | Learning curve |
+| Hybrid search built-in | Fewer managed options |
+
+---
+
+## Validation
 ```bash
-# Run the validation to check your setup
 bash modules/05-weaviate-setup/validation/validate.sh
 ```
-
-**What you should see:** The validation script will show PASS for setup-related checks.
-
-### Exercise 2: Core Implementation
-
-**Goal:** Implement the main concept of this module.
-
-Follow the detailed instructions in the starter directory. The solution directory contains the reference implementation if you get stuck.
-
-**Key points:**
-- Read each instruction carefully before executing
-- Understand WHY each step is needed, not just WHAT to do
-- If something fails, check the troubleshooting section below
-
-### Exercise 3: Integration and Testing
-
-**Goal:** Connect this module's work with the broader system.
-
-- Verify your implementation works with previous modules
-- Run all tests and validation scripts
-- Document what you learned
-
----
-
-## Starter Files
-
-Check `lab/starter/` for:
-- Configuration templates to fill in
-- Skeleton code to complete
-- Setup scripts to run
-
-## Solution Files
-
-If you get stuck, `lab/solution/` contains:
-- Complete working configuration
-- Fully implemented code
-- Expected output examples
-
-> **Important:** Try to complete the exercises yourself first! Looking at solutions too early reduces learning.
-
----
-
-## Common Mistakes
-
-| Mistake | Symptom | Fix |
-|---|---|---|
-| Skipping prerequisites | Module exercises fail | Complete previous modules first |
-| Copy-pasting without understanding | Cannot troubleshoot issues | Read explanations, not just commands |
-| Not checking validation | Think you are done but are not | Run validate.sh after each exercise |
-| Ignoring error messages | Problems compound | Read errors carefully, they tell you what is wrong |
-
----
-
-## Self-Check Questions
-
-Test your understanding before moving on:
-
-1. What is the main purpose of Weaviate Setup and Schema Design?
-2. How does this connect to the previous module?
-3. What would happen in production without this?
-4. Can you explain this concept to a non-technical person?
-5. What are three things that could go wrong, and how would you fix them?
-
----
-
-## You Know You Have Completed This Module When...
-
-- [ ] All exercises completed
-- [ ] Validation script passes: `bash modules/05-weaviate-setup/validation/validate.sh`
-- [ ] You can explain the concepts without looking at notes
-- [ ] You understand how this applies to real-world scenarios
-- [ ] Self-check questions answered confidently
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue: Validation script fails**
-- Re-read the exercise instructions
-- Check that Docker containers are running
-- Verify you are in the correct directory
-- Compare your work with the solution files
-
-**Issue: Docker container not starting**
-```bash
-docker compose logs <service-name>  # Check logs
-docker compose down && docker compose up -d  # Restart
-```
-
-**Issue: Permission denied**
-```bash
-chmod +x validation/validate.sh  # Make script executable
-sudo chown -R $USER .           # Fix ownership (Linux)
-```
-
----
 
 **Next: [Module 06 →](../06-pinecone-managed/)**

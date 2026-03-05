@@ -1,4 +1,4 @@
-# Module 09: Hybrid Search Dense and Sparse
+# Module 09: Hybrid Search (Dense + Sparse)
 
 | | |
 |---|---|
@@ -9,177 +9,95 @@
 ---
 
 ## Learning Objectives
-
-By the end of this module, you will be able to:
-
-- Understand the core concepts of Hybrid Search Dense and Sparse
-- Set up and configure the required tools and environments
-- Complete hands-on exercises that demonstrate practical skills
-- Apply these skills in real-world scenarios
-- Pass the module validation to prove your understanding
+- Understand dense vs sparse vectors
+- Implement BM25 + vector hybrid search
+- Use reciprocal rank fusion (RRF) for result merging
+- Compare hybrid vs pure vector search quality
 
 ---
 
-## Concepts
+## 1. Dense vs Sparse Vectors
 
-### What is Hybrid Search Dense and Sparse?
-
-Hybrid Search Dense and Sparse is a fundamental component of Vector Database Comparison: Zero to Hero. In production environments, this skill is used daily by engineers to build, deploy, and maintain reliable systems.
-
-**Real-world analogy:** Think of Hybrid Search Dense and Sparse like learning to read a map before navigating a city. Once you understand the fundamentals, you can find your way through any complex system.
-
-### Why Does This Matter?
-
-Companies like Google, Netflix, Amazon, and Meta rely on these practices to:
-- Deploy thousands of times per day
-- Maintain 99.99% uptime
-- Scale to millions of users
-- Recover from failures in minutes
-
-### Key Terminology
-
-| Term | Definition |
-|---|---|
-| **Core concept 1** | The foundational building block of this module |
-| **Core concept 2** | How components interact and communicate |
-| **Core concept 3** | The pattern used for reliability and scale |
-| **Best practice** | The industry-standard approach to implementation |
+| Feature | Dense (Embeddings) | Sparse (BM25/TF-IDF) |
+|---------|-------------------|----------------------|
+| Representation | Fixed-size float array | Variable-length word weights |
+| Semantic understanding | Yes | No (keyword matching) |
+| Exact keyword match | Weak | Strong |
+| Best for | "What is machine learning?" | "error code ERR_12345" |
 
 ---
 
-## Hands-On Lab
+## 2. BM25 Sparse Search
 
-### Prerequisites Check
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
 
-Before starting, verify your environment:
+documents = [
+    "Machine learning algorithms process data",
+    "Neural networks learn patterns from examples",
+    "The Python programming language is versatile",
+]
 
-```bash
-# Check Docker is running
-docker --version
-docker compose version
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(documents)
 
-# Check you have the project cloned
-ls modules/09-hybrid-search/
+# Search
+query_vec = vectorizer.transform(["machine learning"])
+scores = (tfidf_matrix @ query_vec.T).toarray().flatten()
+for doc, score in sorted(zip(documents, scores), key=lambda x: x[1], reverse=True):
+    print(f"{score:.4f}  {doc}")
 ```
 
-### Exercise 1: Setup and Configuration
+---
 
-**Goal:** Get the foundation in place for this module.
+## 3. Reciprocal Rank Fusion (RRF)
 
-**Step 1:** Review the starter files
-```bash
-ls modules/09-hybrid-search/lab/starter/
+```python
+def reciprocal_rank_fusion(results_lists: list, k: int = 60) -> list:
+    """Merge multiple ranked result lists using RRF."""
+    scores = {}
+    for results in results_lists:
+        for rank, result in enumerate(results):
+            doc_id = result["id"]
+            if doc_id not in scores:
+                scores[doc_id] = {"score": 0, "data": result}
+            scores[doc_id]["score"] += 1.0 / (k + rank + 1)
+
+    ranked = sorted(scores.values(), key=lambda x: x["score"], reverse=True)
+    return [item["data"] | {"rrf_score": item["score"]} for item in ranked]
+
+# Usage
+dense_results = db.search(collection, query_embedding, top_k=20)
+sparse_results = bm25_search(query_text, top_k=20)
+hybrid_results = reciprocal_rank_fusion([dense_results, sparse_results])
 ```
 
-**Step 2:** Set up the required environment
-```bash
-# Follow the specific setup for this module
-# Each command is explained below
-cd modules/09-hybrid-search/lab/starter/
+---
+
+## 4. Weaviate Built-in Hybrid Search
+
+```python
+# Weaviate supports hybrid search natively
+articles = client.collections.get("Article")
+response = articles.query.hybrid(
+    query="machine learning algorithms",
+    alpha=0.5,  # 0=pure BM25, 1=pure vector, 0.5=balanced
+    limit=10,
+)
+for obj in response.objects:
+    print(f"{obj.properties['title']} (score: {obj.metadata.score:.4f})")
 ```
 
-**Step 3:** Verify the setup
+---
+
+## 5. Hands-On Lab
+
+Implement hybrid search with RRF, compare it against pure vector search on 1000 queries, measure recall improvement.
+
+## Validation
 ```bash
-# Run the validation to check your setup
 bash modules/09-hybrid-search/validation/validate.sh
 ```
-
-**What you should see:** The validation script will show PASS for setup-related checks.
-
-### Exercise 2: Core Implementation
-
-**Goal:** Implement the main concept of this module.
-
-Follow the detailed instructions in the starter directory. The solution directory contains the reference implementation if you get stuck.
-
-**Key points:**
-- Read each instruction carefully before executing
-- Understand WHY each step is needed, not just WHAT to do
-- If something fails, check the troubleshooting section below
-
-### Exercise 3: Integration and Testing
-
-**Goal:** Connect this module's work with the broader system.
-
-- Verify your implementation works with previous modules
-- Run all tests and validation scripts
-- Document what you learned
-
----
-
-## Starter Files
-
-Check `lab/starter/` for:
-- Configuration templates to fill in
-- Skeleton code to complete
-- Setup scripts to run
-
-## Solution Files
-
-If you get stuck, `lab/solution/` contains:
-- Complete working configuration
-- Fully implemented code
-- Expected output examples
-
-> **Important:** Try to complete the exercises yourself first! Looking at solutions too early reduces learning.
-
----
-
-## Common Mistakes
-
-| Mistake | Symptom | Fix |
-|---|---|---|
-| Skipping prerequisites | Module exercises fail | Complete previous modules first |
-| Copy-pasting without understanding | Cannot troubleshoot issues | Read explanations, not just commands |
-| Not checking validation | Think you are done but are not | Run validate.sh after each exercise |
-| Ignoring error messages | Problems compound | Read errors carefully, they tell you what is wrong |
-
----
-
-## Self-Check Questions
-
-Test your understanding before moving on:
-
-1. What is the main purpose of Hybrid Search Dense and Sparse?
-2. How does this connect to the previous module?
-3. What would happen in production without this?
-4. Can you explain this concept to a non-technical person?
-5. What are three things that could go wrong, and how would you fix them?
-
----
-
-## You Know You Have Completed This Module When...
-
-- [ ] All exercises completed
-- [ ] Validation script passes: `bash modules/09-hybrid-search/validation/validate.sh`
-- [ ] You can explain the concepts without looking at notes
-- [ ] You understand how this applies to real-world scenarios
-- [ ] Self-check questions answered confidently
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue: Validation script fails**
-- Re-read the exercise instructions
-- Check that Docker containers are running
-- Verify you are in the correct directory
-- Compare your work with the solution files
-
-**Issue: Docker container not starting**
-```bash
-docker compose logs <service-name>  # Check logs
-docker compose down && docker compose up -d  # Restart
-```
-
-**Issue: Permission denied**
-```bash
-chmod +x validation/validate.sh  # Make script executable
-sudo chown -R $USER .           # Fix ownership (Linux)
-```
-
----
 
 **Next: [Module 10 →](../10-production-recommendations/)**

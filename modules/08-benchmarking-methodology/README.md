@@ -4,182 +4,86 @@
 |---|---|
 | **Time** | 3-5 hours |
 | **Difficulty** | Advanced |
-| **Prerequisites** | Module 07 completed |
+| **Prerequisites** | Modules 03-07 completed |
 
 ---
 
 ## Learning Objectives
-
-By the end of this module, you will be able to:
-
-- Understand the core concepts of Benchmarking Methodology
-- Set up and configure the required tools and environments
-- Complete hands-on exercises that demonstrate practical skills
-- Apply these skills in real-world scenarios
-- Pass the module validation to prove your understanding
+- Design fair benchmarks across vector databases
+- Measure insert throughput, query latency, and recall
+- Avoid common benchmarking pitfalls
 
 ---
 
-## Concepts
+## 1. What to Benchmark
 
-### What is Benchmarking Methodology?
-
-Benchmarking Methodology is a fundamental component of Vector Database Comparison: Zero to Hero. In production environments, this skill is used daily by engineers to build, deploy, and maintain reliable systems.
-
-**Real-world analogy:** Think of Benchmarking Methodology like learning to read a map before navigating a city. Once you understand the fundamentals, you can find your way through any complex system.
-
-### Why Does This Matter?
-
-Companies like Google, Netflix, Amazon, and Meta rely on these practices to:
-- Deploy thousands of times per day
-- Maintain 99.99% uptime
-- Scale to millions of users
-- Recover from failures in minutes
-
-### Key Terminology
-
-| Term | Definition |
-|---|---|
-| **Core concept 1** | The foundational building block of this module |
-| **Core concept 2** | How components interact and communicate |
-| **Core concept 3** | The pattern used for reliability and scale |
-| **Best practice** | The industry-standard approach to implementation |
+| Metric | What It Measures | Why It Matters |
+|--------|-----------------|----------------|
+| Insert throughput | Vectors/second during bulk load | Initial data loading time |
+| Query latency (avg, p50, p95, p99) | Time per search | User experience |
+| Recall@K | % of true nearest neighbors found | Search quality |
+| Memory usage | RAM consumption | Infrastructure cost |
+| Index build time | Time to create search index | Operational overhead |
 
 ---
 
-## Hands-On Lab
+## 2. Using the Benchmark Runner
 
-### Prerequisites Check
+```python
+from src.benchmark.runner import BenchmarkRunner
+from src.databases.chromadb_client import ChromaDBClient
+from src.databases.pgvector_client import PgVectorClient
+from src.databases.weaviate_client import WeaviateClient
 
-Before starting, verify your environment:
+runner = BenchmarkRunner(embedding_dim=1536)
 
-```bash
-# Check Docker is running
-docker --version
-docker compose version
+# Benchmark each database
+chroma = ChromaDBClient()
+runner.run_full_benchmark(chroma, "bench_chroma", num_vectors=10000)
 
-# Check you have the project cloned
-ls modules/08-benchmarking-methodology/
+pg = PgVectorClient()
+runner.run_full_benchmark(pg, "bench_pgvector", num_vectors=10000)
+
+weaviate = WeaviateClient()
+runner.run_full_benchmark(weaviate, "bench_weaviate", num_vectors=10000)
+
+# Compare results
+runner.print_comparison()
+runner.save_results("benchmark_results.json")
 ```
 
-### Exercise 1: Setup and Configuration
-
-**Goal:** Get the foundation in place for this module.
-
-**Step 1:** Review the starter files
-```bash
-ls modules/08-benchmarking-methodology/lab/starter/
+**Expected Output:**
+```
+================================================================================
+Database        Insert (vec/s)     Search avg (ms)    Search p95 (ms)    Recall@10
+================================================================================
+ChromaDB        2500               3.2                8.1                0.952
+pgvector        1800               4.5                12.3               0.968
+Weaviate        3200               2.1                5.4                0.945
+================================================================================
 ```
 
-**Step 2:** Set up the required environment
-```bash
-# Follow the specific setup for this module
-# Each command is explained below
-cd modules/08-benchmarking-methodology/lab/starter/
-```
+---
 
-**Step 3:** Verify the setup
+## 3. Common Pitfalls
+
+| Pitfall | Problem | Solution |
+|---------|---------|----------|
+| Cold vs warm cache | First query much slower | Run warmup queries first |
+| Small dataset | Results don't scale | Test with realistic sizes (10K+) |
+| Single query vector | Not statistically significant | Use 100+ diverse queries |
+| Ignoring index build | Underestimates total cost | Include in total time |
+| Same machine load | Databases compete for resources | Benchmark one at a time |
+
+---
+
+## 4. Hands-On Lab
+
+Run the full benchmark suite, generate comparison charts, and write a recommendation report.
+
+## Validation
 ```bash
-# Run the validation to check your setup
 bash modules/08-benchmarking-methodology/validation/validate.sh
 ```
-
-**What you should see:** The validation script will show PASS for setup-related checks.
-
-### Exercise 2: Core Implementation
-
-**Goal:** Implement the main concept of this module.
-
-Follow the detailed instructions in the starter directory. The solution directory contains the reference implementation if you get stuck.
-
-**Key points:**
-- Read each instruction carefully before executing
-- Understand WHY each step is needed, not just WHAT to do
-- If something fails, check the troubleshooting section below
-
-### Exercise 3: Integration and Testing
-
-**Goal:** Connect this module's work with the broader system.
-
-- Verify your implementation works with previous modules
-- Run all tests and validation scripts
-- Document what you learned
-
----
-
-## Starter Files
-
-Check `lab/starter/` for:
-- Configuration templates to fill in
-- Skeleton code to complete
-- Setup scripts to run
-
-## Solution Files
-
-If you get stuck, `lab/solution/` contains:
-- Complete working configuration
-- Fully implemented code
-- Expected output examples
-
-> **Important:** Try to complete the exercises yourself first! Looking at solutions too early reduces learning.
-
----
-
-## Common Mistakes
-
-| Mistake | Symptom | Fix |
-|---|---|---|
-| Skipping prerequisites | Module exercises fail | Complete previous modules first |
-| Copy-pasting without understanding | Cannot troubleshoot issues | Read explanations, not just commands |
-| Not checking validation | Think you are done but are not | Run validate.sh after each exercise |
-| Ignoring error messages | Problems compound | Read errors carefully, they tell you what is wrong |
-
----
-
-## Self-Check Questions
-
-Test your understanding before moving on:
-
-1. What is the main purpose of Benchmarking Methodology?
-2. How does this connect to the previous module?
-3. What would happen in production without this?
-4. Can you explain this concept to a non-technical person?
-5. What are three things that could go wrong, and how would you fix them?
-
----
-
-## You Know You Have Completed This Module When...
-
-- [ ] All exercises completed
-- [ ] Validation script passes: `bash modules/08-benchmarking-methodology/validation/validate.sh`
-- [ ] You can explain the concepts without looking at notes
-- [ ] You understand how this applies to real-world scenarios
-- [ ] Self-check questions answered confidently
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue: Validation script fails**
-- Re-read the exercise instructions
-- Check that Docker containers are running
-- Verify you are in the correct directory
-- Compare your work with the solution files
-
-**Issue: Docker container not starting**
-```bash
-docker compose logs <service-name>  # Check logs
-docker compose down && docker compose up -d  # Restart
-```
-
-**Issue: Permission denied**
-```bash
-chmod +x validation/validate.sh  # Make script executable
-sudo chown -R $USER .           # Fix ownership (Linux)
-```
-
----
 
 **Next: [Module 09 →](../09-hybrid-search/)**

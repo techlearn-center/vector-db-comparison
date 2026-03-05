@@ -3,183 +3,115 @@
 | | |
 |---|---|
 | **Time** | 3-5 hours |
-| **Difficulty** | Beginner |
-| **Prerequisites** | Module 02 completed |
+| **Difficulty** | Intermediate |
+| **Prerequisites** | Module 02 completed, ChromaDB running |
 
 ---
 
 ## Learning Objectives
-
-By the end of this module, you will be able to:
-
-- Understand the core concepts of ChromaDB Deep Dive
-- Set up and configure the required tools and environments
-- Complete hands-on exercises that demonstrate practical skills
-- Apply these skills in real-world scenarios
-- Pass the module validation to prove your understanding
+- Set up and configure ChromaDB (embedded and client-server)
+- Perform CRUD operations on collections
+- Use metadata filtering and distance metrics
+- Understand HNSW indexing in ChromaDB
 
 ---
 
-## Concepts
+## 1. ChromaDB Setup
 
-### What is ChromaDB Deep Dive?
+```python
+import chromadb
 
-ChromaDB Deep Dive is a fundamental component of Vector Database Comparison: Zero to Hero. In production environments, this skill is used daily by engineers to build, deploy, and maintain reliable systems.
+# Option 1: Embedded (in-process, for development)
+client = chromadb.Client()
 
-**Real-world analogy:** Think of ChromaDB Deep Dive like learning to read a map before navigating a city. Once you understand the fundamentals, you can find your way through any complex system.
+# Option 2: Persistent (saves to disk)
+client = chromadb.PersistentClient(path="./chroma_data")
 
-### Why Does This Matter?
-
-Companies like Google, Netflix, Amazon, and Meta rely on these practices to:
-- Deploy thousands of times per day
-- Maintain 99.99% uptime
-- Scale to millions of users
-- Recover from failures in minutes
-
-### Key Terminology
-
-| Term | Definition |
-|---|---|
-| **Core concept 1** | The foundational building block of this module |
-| **Core concept 2** | How components interact and communicate |
-| **Core concept 3** | The pattern used for reliability and scale |
-| **Best practice** | The industry-standard approach to implementation |
+# Option 3: Client-server (production)
+client = chromadb.HttpClient(host="localhost", port=8001)
+```
 
 ---
 
-## Hands-On Lab
+## 2. Collection Operations
 
-### Prerequisites Check
+```python
+# Create with cosine distance
+collection = client.get_or_create_collection(
+    name="documents",
+    metadata={"hnsw:space": "cosine"},  # cosine, l2, ip
+)
 
-Before starting, verify your environment:
+# Insert vectors
+collection.add(
+    ids=["doc1", "doc2", "doc3"],
+    embeddings=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]],
+    documents=["First doc", "Second doc", "Third doc"],
+    metadatas=[
+        {"source": "web", "category": "tech"},
+        {"source": "pdf", "category": "science"},
+        {"source": "web", "category": "tech"},
+    ],
+)
 
-```bash
-# Check Docker is running
-docker --version
-docker compose version
-
-# Check you have the project cloned
-ls modules/03-chromadb-deep-dive/
+# Query with metadata filter
+results = collection.query(
+    query_embeddings=[[0.1, 0.2, 0.3]],
+    n_results=5,
+    where={"category": "tech"},
+    where_document={"$contains": "doc"},
+    include=["documents", "metadatas", "distances"],
+)
 ```
 
-### Exercise 1: Setup and Configuration
+---
 
-**Goal:** Get the foundation in place for this module.
+## 3. Metadata Filtering
 
-**Step 1:** Review the starter files
-```bash
-ls modules/03-chromadb-deep-dive/lab/starter/
+```python
+# Exact match
+where={"source": "web"}
+
+# Comparison operators
+where={"price": {"$gt": 10}}
+where={"price": {"$gte": 10, "$lte": 100}}
+
+# Logical operators
+where={"$and": [{"source": "web"}, {"category": "tech"}]}
+where={"$or": [{"source": "web"}, {"source": "pdf"}]}
 ```
 
-**Step 2:** Set up the required environment
-```bash
-# Follow the specific setup for this module
-# Each command is explained below
-cd modules/03-chromadb-deep-dive/lab/starter/
+---
+
+## 4. Using Our Wrapper
+
+```python
+from src.databases.chromadb_client import ChromaDBClient
+
+db = ChromaDBClient(host="localhost", port=8001)
+db.create_collection("test_collection")
+db.insert("test_collection", ids=["1", "2"], embeddings=[[0.1]*384, [0.2]*384], documents=["Doc 1", "Doc 2"])
+results = db.search("test_collection", query_embedding=[0.15]*384, top_k=5)
+print(f"Found {len(results)} results")
+print(f"Count: {db.count('test_collection')}")
 ```
 
-**Step 3:** Verify the setup
+---
+
+## 5. When to Use ChromaDB
+
+| Strength | Weakness |
+|----------|----------|
+| Easy setup (pip install) | Limited scalability (single node) |
+| Great for prototyping | No built-in replication |
+| Good Python API | Fewer query features than Weaviate |
+| Metadata filtering | Limited multi-tenancy |
+
+---
+
+## Validation
 ```bash
-# Run the validation to check your setup
 bash modules/03-chromadb-deep-dive/validation/validate.sh
 ```
-
-**What you should see:** The validation script will show PASS for setup-related checks.
-
-### Exercise 2: Core Implementation
-
-**Goal:** Implement the main concept of this module.
-
-Follow the detailed instructions in the starter directory. The solution directory contains the reference implementation if you get stuck.
-
-**Key points:**
-- Read each instruction carefully before executing
-- Understand WHY each step is needed, not just WHAT to do
-- If something fails, check the troubleshooting section below
-
-### Exercise 3: Integration and Testing
-
-**Goal:** Connect this module's work with the broader system.
-
-- Verify your implementation works with previous modules
-- Run all tests and validation scripts
-- Document what you learned
-
----
-
-## Starter Files
-
-Check `lab/starter/` for:
-- Configuration templates to fill in
-- Skeleton code to complete
-- Setup scripts to run
-
-## Solution Files
-
-If you get stuck, `lab/solution/` contains:
-- Complete working configuration
-- Fully implemented code
-- Expected output examples
-
-> **Important:** Try to complete the exercises yourself first! Looking at solutions too early reduces learning.
-
----
-
-## Common Mistakes
-
-| Mistake | Symptom | Fix |
-|---|---|---|
-| Skipping prerequisites | Module exercises fail | Complete previous modules first |
-| Copy-pasting without understanding | Cannot troubleshoot issues | Read explanations, not just commands |
-| Not checking validation | Think you are done but are not | Run validate.sh after each exercise |
-| Ignoring error messages | Problems compound | Read errors carefully, they tell you what is wrong |
-
----
-
-## Self-Check Questions
-
-Test your understanding before moving on:
-
-1. What is the main purpose of ChromaDB Deep Dive?
-2. How does this connect to the previous module?
-3. What would happen in production without this?
-4. Can you explain this concept to a non-technical person?
-5. What are three things that could go wrong, and how would you fix them?
-
----
-
-## You Know You Have Completed This Module When...
-
-- [ ] All exercises completed
-- [ ] Validation script passes: `bash modules/03-chromadb-deep-dive/validation/validate.sh`
-- [ ] You can explain the concepts without looking at notes
-- [ ] You understand how this applies to real-world scenarios
-- [ ] Self-check questions answered confidently
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue: Validation script fails**
-- Re-read the exercise instructions
-- Check that Docker containers are running
-- Verify you are in the correct directory
-- Compare your work with the solution files
-
-**Issue: Docker container not starting**
-```bash
-docker compose logs <service-name>  # Check logs
-docker compose down && docker compose up -d  # Restart
-```
-
-**Issue: Permission denied**
-```bash
-chmod +x validation/validate.sh  # Make script executable
-sudo chown -R $USER .           # Fix ownership (Linux)
-```
-
----
 
 **Next: [Module 04 →](../04-pgvector-postgresql/)**

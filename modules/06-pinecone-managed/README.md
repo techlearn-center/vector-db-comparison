@@ -4,182 +4,94 @@
 |---|---|
 | **Time** | 3-5 hours |
 | **Difficulty** | Intermediate |
-| **Prerequisites** | Module 05 completed |
+| **Prerequisites** | Module 05 completed, Pinecone account |
 
 ---
 
 ## Learning Objectives
-
-By the end of this module, you will be able to:
-
-- Understand the core concepts of Pinecone Managed Service
-- Set up and configure the required tools and environments
-- Complete hands-on exercises that demonstrate practical skills
-- Apply these skills in real-world scenarios
-- Pass the module validation to prove your understanding
+- Set up Pinecone serverless and pod-based indexes
+- Perform upsert, query, and delete operations
+- Use namespaces for multi-tenancy
+- Understand pricing and scaling
 
 ---
 
-## Concepts
+## 1. Pinecone Setup
 
-### What is Pinecone Managed Service?
+```python
+from pinecone import Pinecone, ServerlessSpec
 
-Pinecone Managed Service is a fundamental component of Vector Database Comparison: Zero to Hero. In production environments, this skill is used daily by engineers to build, deploy, and maintain reliable systems.
+pc = Pinecone(api_key="your-api-key")
 
-**Real-world analogy:** Think of Pinecone Managed Service like learning to read a map before navigating a city. Once you understand the fundamentals, you can find your way through any complex system.
+# Create serverless index
+pc.create_index(
+    name="documents",
+    dimension=1536,
+    metric="cosine",
+    spec=ServerlessSpec(cloud="aws", region="us-east-1"),
+)
 
-### Why Does This Matter?
-
-Companies like Google, Netflix, Amazon, and Meta rely on these practices to:
-- Deploy thousands of times per day
-- Maintain 99.99% uptime
-- Scale to millions of users
-- Recover from failures in minutes
-
-### Key Terminology
-
-| Term | Definition |
-|---|---|
-| **Core concept 1** | The foundational building block of this module |
-| **Core concept 2** | How components interact and communicate |
-| **Core concept 3** | The pattern used for reliability and scale |
-| **Best practice** | The industry-standard approach to implementation |
+index = pc.Index("documents")
+```
 
 ---
 
-## Hands-On Lab
+## 2. Operations
 
-### Prerequisites Check
+```python
+# Upsert vectors
+index.upsert(vectors=[
+    {"id": "doc1", "values": [0.1, 0.2, ...], "metadata": {"category": "tech", "source": "web"}},
+    {"id": "doc2", "values": [0.3, 0.4, ...], "metadata": {"category": "science", "source": "pdf"}},
+])
 
-Before starting, verify your environment:
+# Query with metadata filter
+results = index.query(
+    vector=[0.1, 0.2, ...],
+    top_k=10,
+    include_metadata=True,
+    filter={"category": {"$eq": "tech"}},
+)
 
-```bash
-# Check Docker is running
-docker --version
-docker compose version
+for match in results["matches"]:
+    print(f"{match['id']}: {match['score']:.4f} - {match['metadata']}")
 
-# Check you have the project cloned
-ls modules/06-pinecone-managed/
+# Namespaces (multi-tenancy)
+index.upsert(vectors=[...], namespace="user-123")
+results = index.query(vector=[...], top_k=10, namespace="user-123")
+
+# Delete
+index.delete(ids=["doc1", "doc2"])
+index.delete(filter={"category": "old"})
 ```
 
-### Exercise 1: Setup and Configuration
+---
 
-**Goal:** Get the foundation in place for this module.
+## 3. When to Use Pinecone
 
-**Step 1:** Review the starter files
+| Strength | Weakness |
+|----------|----------|
+| Fully managed (zero ops) | Vendor lock-in |
+| Auto-scaling | Can be expensive at scale |
+| Low latency globally | Data leaves your infrastructure |
+| Simple API | Limited query flexibility |
+| Free tier available | No self-hosted option |
+
+---
+
+## 4. Pricing Comparison
+
+| Plan | Storage | Queries | Cost |
+|------|---------|---------|------|
+| Free (Starter) | 100K vectors | Unlimited | $0 |
+| Serverless | Pay per use | Per query | ~$0.01-0.10/1K queries |
+| Pod-based | Per pod | Unlimited | $70+/month per pod |
+
+---
+
+## Validation
 ```bash
-ls modules/06-pinecone-managed/lab/starter/
-```
-
-**Step 2:** Set up the required environment
-```bash
-# Follow the specific setup for this module
-# Each command is explained below
-cd modules/06-pinecone-managed/lab/starter/
-```
-
-**Step 3:** Verify the setup
-```bash
-# Run the validation to check your setup
 bash modules/06-pinecone-managed/validation/validate.sh
 ```
-
-**What you should see:** The validation script will show PASS for setup-related checks.
-
-### Exercise 2: Core Implementation
-
-**Goal:** Implement the main concept of this module.
-
-Follow the detailed instructions in the starter directory. The solution directory contains the reference implementation if you get stuck.
-
-**Key points:**
-- Read each instruction carefully before executing
-- Understand WHY each step is needed, not just WHAT to do
-- If something fails, check the troubleshooting section below
-
-### Exercise 3: Integration and Testing
-
-**Goal:** Connect this module's work with the broader system.
-
-- Verify your implementation works with previous modules
-- Run all tests and validation scripts
-- Document what you learned
-
----
-
-## Starter Files
-
-Check `lab/starter/` for:
-- Configuration templates to fill in
-- Skeleton code to complete
-- Setup scripts to run
-
-## Solution Files
-
-If you get stuck, `lab/solution/` contains:
-- Complete working configuration
-- Fully implemented code
-- Expected output examples
-
-> **Important:** Try to complete the exercises yourself first! Looking at solutions too early reduces learning.
-
----
-
-## Common Mistakes
-
-| Mistake | Symptom | Fix |
-|---|---|---|
-| Skipping prerequisites | Module exercises fail | Complete previous modules first |
-| Copy-pasting without understanding | Cannot troubleshoot issues | Read explanations, not just commands |
-| Not checking validation | Think you are done but are not | Run validate.sh after each exercise |
-| Ignoring error messages | Problems compound | Read errors carefully, they tell you what is wrong |
-
----
-
-## Self-Check Questions
-
-Test your understanding before moving on:
-
-1. What is the main purpose of Pinecone Managed Service?
-2. How does this connect to the previous module?
-3. What would happen in production without this?
-4. Can you explain this concept to a non-technical person?
-5. What are three things that could go wrong, and how would you fix them?
-
----
-
-## You Know You Have Completed This Module When...
-
-- [ ] All exercises completed
-- [ ] Validation script passes: `bash modules/06-pinecone-managed/validation/validate.sh`
-- [ ] You can explain the concepts without looking at notes
-- [ ] You understand how this applies to real-world scenarios
-- [ ] Self-check questions answered confidently
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue: Validation script fails**
-- Re-read the exercise instructions
-- Check that Docker containers are running
-- Verify you are in the correct directory
-- Compare your work with the solution files
-
-**Issue: Docker container not starting**
-```bash
-docker compose logs <service-name>  # Check logs
-docker compose down && docker compose up -d  # Restart
-```
-
-**Issue: Permission denied**
-```bash
-chmod +x validation/validate.sh  # Make script executable
-sudo chown -R $USER .           # Fix ownership (Linux)
-```
-
----
 
 **Next: [Module 07 →](../07-indexing-strategies/)**

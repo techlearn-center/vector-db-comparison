@@ -4,182 +4,113 @@
 |---|---|
 | **Time** | 3-5 hours |
 | **Difficulty** | Beginner |
-| **Prerequisites** | Docker installed, basic terminal knowledge |
+| **Prerequisites** | Python 3.10+, Docker, basic linear algebra |
 
 ---
 
 ## Learning Objectives
-
-By the end of this module, you will be able to:
-
-- Understand the core concepts of Vector Search Fundamentals
-- Set up and configure the required tools and environments
-- Complete hands-on exercises that demonstrate practical skills
-- Apply these skills in real-world scenarios
-- Pass the module validation to prove your understanding
+- Understand vector embeddings and similarity search
+- Learn distance metrics (cosine, euclidean, dot product)
+- Set up the development environment with all 4 databases
+- Perform your first vector similarity search
 
 ---
 
-## Concepts
+## 1. What are Vector Embeddings?
 
-### What is Vector Search Fundamentals?
+Vector embeddings are numerical representations of data in high-dimensional space. Similar items have vectors that are close together.
 
-Vector Search Fundamentals is a fundamental component of Vector Database Comparison: Zero to Hero. In production environments, this skill is used daily by engineers to build, deploy, and maintain reliable systems.
-
-**Real-world analogy:** Think of Vector Search Fundamentals like learning to read a map before navigating a city. Once you understand the fundamentals, you can find your way through any complex system.
-
-### Why Does This Matter?
-
-Companies like Google, Netflix, Amazon, and Meta rely on these practices to:
-- Deploy thousands of times per day
-- Maintain 99.99% uptime
-- Scale to millions of users
-- Recover from failures in minutes
-
-### Key Terminology
-
-| Term | Definition |
-|---|---|
-| **Core concept 1** | The foundational building block of this module |
-| **Core concept 2** | How components interact and communicate |
-| **Core concept 3** | The pattern used for reliability and scale |
-| **Best practice** | The industry-standard approach to implementation |
+```
+"The cat sat on the mat"    -->  [0.12, -0.45, 0.78, ..., 0.33]  (1536 dims)
+"A kitten rested on a rug"  -->  [0.11, -0.43, 0.76, ..., 0.31]  (very similar!)
+"Stock market is volatile"  -->  [0.89, 0.12, -0.67, ..., -0.44] (very different!)
+```
 
 ---
 
-## Hands-On Lab
+## 2. Distance Metrics
 
-### Prerequisites Check
+| Metric | Formula | Range | Best For |
+|--------|---------|-------|----------|
+| Cosine Similarity | cos(A,B) = A.B / (\|\|A\|\| * \|\|B\|\|) | [-1, 1] | Text search |
+| Euclidean (L2) | sqrt(sum((a-b)^2)) | [0, inf] | Image similarity |
+| Dot Product | sum(a*b) | (-inf, inf) | Recommendation systems |
 
-Before starting, verify your environment:
+```python
+import numpy as np
+from numpy.linalg import norm
 
-```bash
-# Check Docker is running
-docker --version
-docker compose version
+a = np.array([1, 2, 3])
+b = np.array([4, 5, 6])
 
-# Check you have the project cloned
-ls modules/01-vector-search-fundamentals/
+cosine = np.dot(a, b) / (norm(a) * norm(b))
+print(f"Cosine: {cosine:.4f}")  # 0.9746
+
+euclidean = norm(a - b)
+print(f"Euclidean: {euclidean:.4f}")  # 5.1962
+
+dot = np.dot(a, b)
+print(f"Dot product: {dot}")  # 32
 ```
 
-### Exercise 1: Setup and Configuration
+---
 
-**Goal:** Get the foundation in place for this module.
+## 3. Environment Setup
 
-**Step 1:** Review the starter files
 ```bash
-ls modules/01-vector-search-fundamentals/lab/starter/
+cd vector-db-comparison
+cp .env.example .env
+
+# Start all 4 databases
+docker compose up -d
+
+# Verify each service
+curl http://localhost:8001/api/v1/heartbeat     # ChromaDB
+psql -h localhost -U vectordb -d vectors -c "SELECT 1;"  # pgvector
+curl http://localhost:8080/v1/.well-known/ready  # Weaviate
 ```
 
-**Step 2:** Set up the required environment
-```bash
-# Follow the specific setup for this module
-# Each command is explained below
-cd modules/01-vector-search-fundamentals/lab/starter/
+---
+
+## 4. Your First Vector Search
+
+```python
+from src.embeddings.embed import EmbeddingGenerator
+import numpy as np
+
+gen = EmbeddingGenerator(provider="openai")
+
+texts = [
+    "Machine learning is a subset of AI",
+    "Neural networks learn from data",
+    "The weather is sunny today",
+    "Deep learning uses multiple layers",
+    "I like pizza for dinner",
+]
+embeddings = gen.embed(texts)
+
+query = gen.embed(["How does AI learn?"])[0]
+similarities = np.dot(embeddings, query)
+ranked = sorted(zip(texts, similarities), key=lambda x: x[1], reverse=True)
+
+for text, score in ranked:
+    print(f"{score:.4f}  {text}")
 ```
 
-**Step 3:** Verify the setup
+**Expected Output:**
+```
+0.8945  Machine learning is a subset of AI
+0.8723  Neural networks learn from data
+0.8512  Deep learning uses multiple layers
+0.4231  The weather is sunny today
+0.3876  I like pizza for dinner
+```
+
+---
+
+## Validation
 ```bash
-# Run the validation to check your setup
 bash modules/01-vector-search-fundamentals/validation/validate.sh
 ```
 
-**What you should see:** The validation script will show PASS for setup-related checks.
-
-### Exercise 2: Core Implementation
-
-**Goal:** Implement the main concept of this module.
-
-Follow the detailed instructions in the starter directory. The solution directory contains the reference implementation if you get stuck.
-
-**Key points:**
-- Read each instruction carefully before executing
-- Understand WHY each step is needed, not just WHAT to do
-- If something fails, check the troubleshooting section below
-
-### Exercise 3: Integration and Testing
-
-**Goal:** Connect this module's work with the broader system.
-
-- Verify your implementation works with previous modules
-- Run all tests and validation scripts
-- Document what you learned
-
----
-
-## Starter Files
-
-Check `lab/starter/` for:
-- Configuration templates to fill in
-- Skeleton code to complete
-- Setup scripts to run
-
-## Solution Files
-
-If you get stuck, `lab/solution/` contains:
-- Complete working configuration
-- Fully implemented code
-- Expected output examples
-
-> **Important:** Try to complete the exercises yourself first! Looking at solutions too early reduces learning.
-
----
-
-## Common Mistakes
-
-| Mistake | Symptom | Fix |
-|---|---|---|
-| Skipping prerequisites | Module exercises fail | Complete previous modules first |
-| Copy-pasting without understanding | Cannot troubleshoot issues | Read explanations, not just commands |
-| Not checking validation | Think you are done but are not | Run validate.sh after each exercise |
-| Ignoring error messages | Problems compound | Read errors carefully, they tell you what is wrong |
-
----
-
-## Self-Check Questions
-
-Test your understanding before moving on:
-
-1. What is the main purpose of Vector Search Fundamentals?
-2. How does this connect to the previous module?
-3. What would happen in production without this?
-4. Can you explain this concept to a non-technical person?
-5. What are three things that could go wrong, and how would you fix them?
-
----
-
-## You Know You Have Completed This Module When...
-
-- [ ] All exercises completed
-- [ ] Validation script passes: `bash modules/01-vector-search-fundamentals/validation/validate.sh`
-- [ ] You can explain the concepts without looking at notes
-- [ ] You understand how this applies to real-world scenarios
-- [ ] Self-check questions answered confidently
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue: Validation script fails**
-- Re-read the exercise instructions
-- Check that Docker containers are running
-- Verify you are in the correct directory
-- Compare your work with the solution files
-
-**Issue: Docker container not starting**
-```bash
-docker compose logs <service-name>  # Check logs
-docker compose down && docker compose up -d  # Restart
-```
-
-**Issue: Permission denied**
-```bash
-chmod +x validation/validate.sh  # Make script executable
-sudo chown -R $USER .           # Fix ownership (Linux)
-```
-
----
-
-**Next: [Module 02 →](../02-embedding-models/)**
+**Next: [Module 02 - Embedding Models →](../02-embedding-models/)**

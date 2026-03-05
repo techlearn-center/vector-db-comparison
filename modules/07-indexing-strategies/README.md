@@ -4,182 +4,82 @@
 |---|---|
 | **Time** | 3-5 hours |
 | **Difficulty** | Advanced |
-| **Prerequisites** | Module 06 completed |
+| **Prerequisites** | Modules 03-06 completed |
 
 ---
 
 ## Learning Objectives
-
-By the end of this module, you will be able to:
-
-- Understand the core concepts of Indexing Strategies and HNSW
-- Set up and configure the required tools and environments
-- Complete hands-on exercises that demonstrate practical skills
-- Apply these skills in real-world scenarios
-- Pass the module validation to prove your understanding
+- Understand HNSW, IVF, and flat index algorithms
+- Tune index parameters for recall vs speed tradeoffs
+- Choose the right index for your data size
 
 ---
 
-## Concepts
+## 1. Index Types
 
-### What is Indexing Strategies and HNSW?
+### Flat (Brute Force)
+- Exact nearest neighbor search
+- O(n) per query - slow for large datasets
+- 100% recall guaranteed
+- Use when: < 10K vectors
 
-Indexing Strategies and HNSW is a fundamental component of Vector Database Comparison: Zero to Hero. In production environments, this skill is used daily by engineers to build, deploy, and maintain reliable systems.
+### IVFFlat (Inverted File Index)
+- Clusters vectors into buckets, searches nearby buckets
+- Build time: O(n), Query: O(n/lists * probes)
+- Recall depends on `probes` parameter
+- Use when: 10K-1M vectors
 
-**Real-world analogy:** Think of Indexing Strategies and HNSW like learning to read a map before navigating a city. Once you understand the fundamentals, you can find your way through any complex system.
-
-### Why Does This Matter?
-
-Companies like Google, Netflix, Amazon, and Meta rely on these practices to:
-- Deploy thousands of times per day
-- Maintain 99.99% uptime
-- Scale to millions of users
-- Recover from failures in minutes
-
-### Key Terminology
-
-| Term | Definition |
-|---|---|
-| **Core concept 1** | The foundational building block of this module |
-| **Core concept 2** | How components interact and communicate |
-| **Core concept 3** | The pattern used for reliability and scale |
-| **Best practice** | The industry-standard approach to implementation |
+### HNSW (Hierarchical Navigable Small World)
+- Graph-based approximate nearest neighbor
+- Build time: O(n * log(n)), Query: O(log(n))
+- Best recall-speed tradeoff
+- Use when: > 100K vectors
 
 ---
 
-## Hands-On Lab
+## 2. HNSW Parameters
 
-### Prerequisites Check
+| Parameter | Effect | Default | Tune For |
+|-----------|--------|---------|----------|
+| `M` | Max connections per node | 16 | Higher = better recall, more memory |
+| `ef_construction` | Build-time search width | 64 | Higher = better graph quality |
+| `ef_search` | Query-time search width | 40 | Higher = better recall, slower |
 
-Before starting, verify your environment:
+```python
+# pgvector HNSW tuning
+CREATE INDEX ON docs USING hnsw (embedding vector_cosine_ops)
+WITH (m = 24, ef_construction = 128);
 
-```bash
-# Check Docker is running
-docker --version
-docker compose version
+SET hnsw.ef_search = 100;
 
-# Check you have the project cloned
-ls modules/07-indexing-strategies/
+# ChromaDB HNSW tuning
+collection = client.create_collection(
+    "tuned",
+    metadata={
+        "hnsw:space": "cosine",
+        "hnsw:M": 24,
+        "hnsw:construction_ef": 128,
+        "hnsw:search_ef": 100,
+    },
+)
 ```
 
-### Exercise 1: Setup and Configuration
+---
 
-**Goal:** Get the foundation in place for this module.
+## 3. Index Size Guidelines
 
-**Step 1:** Review the starter files
+| Dataset Size | Recommended Index | Expected Recall | Query Latency |
+|-------------|-------------------|----------------|---------------|
+| < 10K | Flat | 100% | < 10ms |
+| 10K - 100K | IVFFlat | 95-99% | 1-5ms |
+| 100K - 10M | HNSW | 95-99% | 1-10ms |
+| > 10M | HNSW + sharding | 90-98% | 5-50ms |
+
+---
+
+## Validation
 ```bash
-ls modules/07-indexing-strategies/lab/starter/
-```
-
-**Step 2:** Set up the required environment
-```bash
-# Follow the specific setup for this module
-# Each command is explained below
-cd modules/07-indexing-strategies/lab/starter/
-```
-
-**Step 3:** Verify the setup
-```bash
-# Run the validation to check your setup
 bash modules/07-indexing-strategies/validation/validate.sh
 ```
-
-**What you should see:** The validation script will show PASS for setup-related checks.
-
-### Exercise 2: Core Implementation
-
-**Goal:** Implement the main concept of this module.
-
-Follow the detailed instructions in the starter directory. The solution directory contains the reference implementation if you get stuck.
-
-**Key points:**
-- Read each instruction carefully before executing
-- Understand WHY each step is needed, not just WHAT to do
-- If something fails, check the troubleshooting section below
-
-### Exercise 3: Integration and Testing
-
-**Goal:** Connect this module's work with the broader system.
-
-- Verify your implementation works with previous modules
-- Run all tests and validation scripts
-- Document what you learned
-
----
-
-## Starter Files
-
-Check `lab/starter/` for:
-- Configuration templates to fill in
-- Skeleton code to complete
-- Setup scripts to run
-
-## Solution Files
-
-If you get stuck, `lab/solution/` contains:
-- Complete working configuration
-- Fully implemented code
-- Expected output examples
-
-> **Important:** Try to complete the exercises yourself first! Looking at solutions too early reduces learning.
-
----
-
-## Common Mistakes
-
-| Mistake | Symptom | Fix |
-|---|---|---|
-| Skipping prerequisites | Module exercises fail | Complete previous modules first |
-| Copy-pasting without understanding | Cannot troubleshoot issues | Read explanations, not just commands |
-| Not checking validation | Think you are done but are not | Run validate.sh after each exercise |
-| Ignoring error messages | Problems compound | Read errors carefully, they tell you what is wrong |
-
----
-
-## Self-Check Questions
-
-Test your understanding before moving on:
-
-1. What is the main purpose of Indexing Strategies and HNSW?
-2. How does this connect to the previous module?
-3. What would happen in production without this?
-4. Can you explain this concept to a non-technical person?
-5. What are three things that could go wrong, and how would you fix them?
-
----
-
-## You Know You Have Completed This Module When...
-
-- [ ] All exercises completed
-- [ ] Validation script passes: `bash modules/07-indexing-strategies/validation/validate.sh`
-- [ ] You can explain the concepts without looking at notes
-- [ ] You understand how this applies to real-world scenarios
-- [ ] Self-check questions answered confidently
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue: Validation script fails**
-- Re-read the exercise instructions
-- Check that Docker containers are running
-- Verify you are in the correct directory
-- Compare your work with the solution files
-
-**Issue: Docker container not starting**
-```bash
-docker compose logs <service-name>  # Check logs
-docker compose down && docker compose up -d  # Restart
-```
-
-**Issue: Permission denied**
-```bash
-chmod +x validation/validate.sh  # Make script executable
-sudo chown -R $USER .           # Fix ownership (Linux)
-```
-
----
 
 **Next: [Module 08 →](../08-benchmarking-methodology/)**
